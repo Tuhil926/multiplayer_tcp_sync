@@ -20,6 +20,11 @@ inp = [0, 0, 0, 0]
 
 def send_input():
     while running:
+        keys = pygame.key.get_pressed()
+        inp[0] = int(keys[pygame.K_a])
+        inp[1] = int(keys[pygame.K_d])
+        inp[2] = int(keys[pygame.K_w])
+        inp[3] = int(keys[pygame.K_s])
         to_send = json.dumps(inp)
         client_sock.send(to_send.encode())
         print("sent", to_send)
@@ -78,11 +83,7 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    keys = pygame.key.get_pressed()
-    inp[0] = int(keys[pygame.K_a])
-    inp[1] = int(keys[pygame.K_d])
-    inp[2] = int(keys[pygame.K_w])
-    inp[3] = int(keys[pygame.K_s])
+    # keys = pygame.key.get_pressed()
     if len(state) >= 5:
         # if username in state[4]:
         #     pygame.draw.circle(screen, (255, 255, 255), state[4][username], 20)
