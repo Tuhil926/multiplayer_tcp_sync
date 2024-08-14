@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 import json
+import queue
 
 SENDING_DELAY = 0.05
 PORT = 9001
@@ -22,17 +23,22 @@ clients = {}
 # this is where the game logic for updating the state goes
 def update_state_on_input():
     for name in clients.keys():
-        client_inp = clients[name][1]
-        if name not in state[4]:
-            state[4][name] = [350, 350]
-        if client_inp[0]:
-            state[4][name][0] -= 5
-        if client_inp[1]:
-            state[4][name][0] += 5
-        if client_inp[2]:
-            state[4][name][1] -= 5
-        if client_inp[3]:
-            state[4][name][1] += 5
+        try:
+            client_inp = clients[name][1].get_nowait()
+            if name not in state[4]:
+                state[4][name] = [350, 350]
+            if client_inp[0]:
+                state[4][name][0] -= 5
+            if client_inp[1]:
+                state[4][name][0] += 5
+            if client_inp[2]:
+                state[4][name][1] -= 5
+            if client_inp[3]:
+                state[4][name][1] += 5
+            if clients[name][1].empty():
+                clients[name][1].put(client_inp)
+        except queue.Empty:
+            pass
     keys = [key for key in state[4].keys()]
     for name in keys:
         if name not in clients:
@@ -68,11 +74,15 @@ def receive_input(name):
             # print("received", received)
             # print(clients)
             new_inp = json.loads(received)
-            for i in range(len(new_inp)):
-                if i < len(clients[name][1]):
-                    clients[name][1][i] = new_inp[i]
-                else:
-                    clients[name][1].append(new_inp[i])
+            # for i in range(len(new_inp)):
+            #     if i < len(clients[name][1]):
+            #         clients[name][1][i] = new_inp[i]
+            #     else:
+            #         clients[name][1].append(new_inp[i])
+            try:
+                clients[name][1].put_nowait(new_inp)
+            except queue.Full:
+                print("input queue is full!!")
     except:
         if name in clients:
             del clients[name]
@@ -94,7 +104,7 @@ while running:
         sock.close()
         continue
     # set this to the default input
-    clients[name] = (sock, [0, 0, 0, 0])
+    clients[name] = (sock, queue.Queue(maxsize=1000))
     send_thread = threading.Thread(target=send_state, args=(name,), daemon=True)
     recv_thread = threading.Thread(target=receive_input, args=(name,), daemon=True)
     send_thread.start()
